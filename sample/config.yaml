@@ -1,0 +1,11 @@
+namespace: default
+#imageURL: "https://download.opensuse.org/repositories/Cloud:/Images:/Leap_15.6/images/openSUSE-Leap-15.6.x86_64-NoCloud.qcow2"
+imageURL: "http://10.115.1.6/iso/opensuse/openSUSE-Leap-15.5.x86_64-NoCloud.qcow2"
+storageClass: harvester-longhorn
+snapshotClass: longhorn-snapshot
+vmConfig:
+  cpu: 2
+  memory: 2Gi
+  diskSize: 10Gi
+skipCleanup: false
+timeout: 600
