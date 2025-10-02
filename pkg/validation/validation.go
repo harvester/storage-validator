@@ -13,18 +13,16 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 	cdiv1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 
 	"github.com/harvester/storage-validator/pkg/api"
 
-	harvesterhciv1beta1 "github.com/harvester/harvester/pkg/generated/clientset/versioned"
 	"github.com/rancher/wrangler/v3/pkg/signals"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
+	"kubevirt.io/client-go/kubecli"
 	cdi "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
@@ -45,9 +43,8 @@ type ValidationRun struct {
 }
 
 type HarvesterClient struct {
-	coreClient    *kubernetes.Clientset
-	hvClient      *harvesterhciv1beta1.Clientset
-	runtimeClient client.Client
+	kubevirtClient kubecli.KubevirtClient
+	runtimeClient  client.Client
 }
 
 func init() {
@@ -128,10 +125,11 @@ func (v *ValidationRun) preFlightChecks() error {
 		return errors.New("no imageURL specified, aborting run")
 	}
 
-	nodeList, err := v.clients.coreClient.CoreV1().Nodes().List(v.ctx, metav1.ListOptions{})
-	if err != nil {
+	nodeList := &corev1.NodeList{}
+	if err := v.clients.runtimeClient.List(v.ctx, nodeList); err != nil {
 		return fmt.Errorf("error listing nodes during pre-flight checks: %w", err)
 	}
+
 	count := 0
 	for _, node := range nodeList.Items {
 		if node.DeletionTimestamp == nil && isNodeReady(node) {
@@ -231,24 +229,17 @@ func (v *ValidationRun) setupClients() error {
 		return fmt.Errorf("error loading kubeconfig %v", err)
 	}
 
-	coreClient, err := kubernetes.NewForConfig(cfg)
+	kubevirtClient, err := kubecli.GetKubevirtClientFromRESTConfig(cfg)
 	if err != nil {
-		return fmt.Errorf("error generating kubernetes client interface: %w", err)
+		return fmt.Errorf("error generating kubevirt client: %w", err)
 	}
-
-	harvesterClient, err := harvesterhciv1beta1.NewForConfig(cfg)
-	if err != nil {
-		return fmt.Errorf("error generating harvester client interface: %w", err)
-	}
-
 	runtimeClient, err := client.New(cfg, client.Options{Scheme: scheme})
 	if err != nil {
 		return fmt.Errorf("error generating dynamic client interface: %w", err)
 	}
 	clients := HarvesterClient{
-		coreClient:    coreClient,
-		hvClient:      harvesterClient,
-		runtimeClient: runtimeClient,
+		kubevirtClient: kubevirtClient,
+		runtimeClient:  runtimeClient,
 	}
 
 	v.cfg = cfg

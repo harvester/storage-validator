@@ -32,15 +32,6 @@ func (v *ValidationRun) cleanupResources(ctx context.Context, complete chan bool
 	// delete in reverse to ensure dependencies are resolved
 
 	logrus.Debugf("need to cleanup %d objects\n", len(v.createdObjects))
-	/*for _, obj := range v.createdObjects {
-		// ensure cleanup runs even if `ctx` passed has timed out
-		// different context to ensure cleanup happens even if parent context is
-		// cancelled due to user initiated termination
-		if err := v.clients.runtimeClient.Delete(context.TODO(), obj); err != nil {
-			// just log error and move on and attempt to clean up remaining objects
-			logrus.Errorf("error deleting object %s: %v", obj.GetName(), err)
-		}
-	}*/
 	for i := len(v.createdObjects) - 1; i >= 0; i-- {
 		obj := v.createdObjects[i]
 		// ensure cleanup runs even if `ctx` passed has timed out
@@ -69,7 +60,7 @@ func deleteObjectWithRetry(ctx context.Context, runtimeClient client.Client, obj
 		if err == nil {
 			return nil
 		}
-		time.Sleep(10 * time.Second)
+		time.Sleep(20 * time.Second)
 	}
 	return err
 }

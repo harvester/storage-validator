@@ -30,14 +30,14 @@ func (v *ValidationRun) runChecks() error {
 	go v.cleanupResources(ctx, cleanupComplete)
 
 	var definedCheckups = []checkups{v.createVolume, v.createSnapshot, v.volumeOfflineResize, v.createVMImage,
-		v.createVirtualMachine, v.runVMMigration}
+		v.createVirtualMachine, v.runVMMigration, v.hotPlugVolume}
 
 	var err error
 	// on error break execution and ensure cleanup is triggered
 	for _, check := range definedCheckups {
 		err := check(ctx)
 		if err != nil {
-			logrus.Errorf("validation failure: %w", err)
+			logrus.Errorf("validation failure: %v", err)
 			break
 		}
 	}
