@@ -12,6 +12,7 @@ import (
 var (
 	configFile string
 	debug      bool
+	Version    = "dev"
 )
 
 func main() {
@@ -27,6 +28,7 @@ func main() {
 
 	v := &validation.ValidationRun{
 		ConfigFile: configFile,
+		Version:    Version,
 	}
 
 	// run validation

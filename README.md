@@ -51,20 +51,28 @@ Sample output of utility will be as follows
 
 ```
 storage-validator -config ./sample/config.yaml
-INFO[0000] running preflight checks
-INFO[0004] 🚀 initiate: ensure volume is created and used successfully
-INFO[0012] ✅  completed: ensure volume is created and used successfully
-INFO[0012] 🚀 initiate: ensure volume snapshot can be created successfully
-INFO[0025] ✅  completed: ensure volume snapshot can be created successfully
-INFO[0025] 🚀 initiate: ensure offline volume expansion is successful
-INFO[0087] ✅  completed: ensure offline volume expansion is successful
-INFO[0087] 🚀 initiate: ensure vm image creation is successful
-INFO[0111] ✅  completed: ensure vm image creation is successful
-INFO[0111] 🚀 initiate: ensure vm can boot from recently created vmimage
-INFO[0141] ✅  completed: ensure vm can boot from recently created vmimage
-INFO[0141] 🚀 initiate: trigger VM migration
-INFO[0165] ✅  completed: trigger VM migration
-INFO[0165] cleaning up objects created from validation
+INFO[0000] 🚀 initiate: preflight checks
+INFO[0003] ✅  completed: preflight checks
+INFO[0007] 🚀 initiate: ensure volume is created and used successfully
+INFO[0015] ✅  completed: ensure volume is created and used successfully
+INFO[0015] 🚀 initiate: ensure volume snapshot can be created successfully
+INFO[0022] ✅  completed: ensure volume snapshot can be created successfully
+INFO[0022] 🚀 initiate: ensure offline volume expansion is successful
+INFO[0059] ✅  completed: ensure offline volume expansion is successful
+INFO[0059] 🚀 initiate: ensure vm image creation is successful
+INFO[0077] ✅  completed: ensure vm image creation is successful
+INFO[0077] 🚀 initiate: ensure vm can boot from recently created vmimage
+INFO[0113] ✅  completed: ensure vm can boot from recently created vmimage
+INFO[0113] 🚀 initiate: trigger VM migration
+INFO[0130] ✅  completed: trigger VM migration
+INFO[0130] 🚀 initiate: hotplug 2 volumes to existing VM
+INFO[0136] ✅  completed: hotplug 2 volumes to existing VM
+INFO[0136] cleaning up objects created from validation
+-------------------------------------
+environmentInfo:
+  harvesterVersion: v1.6.0
+  nodeCount: 2
+  validatorVersion: dev
 inputConfiguration:
   imageURL: http://10.115.1.6/iso/opensuse/openSUSE-Leap-15.5.x86_64-NoCloud.qcow2
   namespace: default
@@ -75,18 +83,20 @@ inputConfiguration:
   vmConfig:
     cpu: 2
     diskSize: 10Gi
-    ram: 4Gi
 results:
-- name: ensure volume is created and used successfully
-  status: success
-- name: ensure volume snapshot can be created successfully
-  status: success
-- name: ensure offline volume expansion is successful
-  status: success
-- name: ensure vm image creation is successful
-  status: success
-- name: ensure vm can boot from recently created vmimage
+- name: hotplug 2 volumes to existing VM
   status: success
 - name: trigger VM migration
   status: success
+- name: ensure vm can boot from recently created vmimage
+  status: success
+- name: ensure vm image creation is successful
+  status: success
+- name: ensure offline volume expansion is successful
+  status: success
+- name: ensure volume snapshot can be created successfully
+  status: success
+- name: ensure volume is created and used successfully
+  status: success
+
 ```

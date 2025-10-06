@@ -1,14 +1,21 @@
 package api
 
 type Report struct {
-	Configuration `json:"inputConfiguration"`
-	Results       []Result `json:"results"`
+	EnvironmentInfo `json:"environmentInfo"`
+	Configuration   `json:"inputConfiguration"`
+	Results         []Result `json:"results"`
 }
 
 type Result struct {
 	Name   string      `json:"name"`
 	Status CheckStatus `json:"status"`
 	Info   string      `json:"info,omitempty"`
+}
+
+type EnvironmentInfo struct {
+	HarvesterVersion string `json:"harvesterVersion"`
+	NodeCount        int    `json:"nodeCount"`
+	ValidatorVersion string `json:"validatorVersion"`
 }
 
 type CheckStatus string

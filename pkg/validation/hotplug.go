@@ -11,23 +11,12 @@ import (
 	"k8s.io/utils/ptr"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/harvester/storage-validator/pkg/api"
 )
 
 func (v *ValidationRun) hotPlugVolume(ctx context.Context) error {
-	checkName := "hotplug 2 volumes to existing VM"
-	initiateCheck(checkName)
-	result := &api.Result{
-		Name: checkName,
-	}
-
-	defer func() {
-		v.AddResult(*result)
-	}()
 
 	pvcList := []*corev1.PersistentVolumeClaim{
-		&corev1.PersistentVolumeClaim{
+		{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "hotplug-storage-validation-",
 				Namespace:    v.Configuration.Namespace,
@@ -43,7 +32,7 @@ func (v *ValidationRun) hotPlugVolume(ctx context.Context) error {
 				VolumeMode: ptr.To(corev1.PersistentVolumeBlock),
 			},
 		},
-		&corev1.PersistentVolumeClaim{
+		{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "hotplug-storage-validation-",
 				Namespace:    v.Configuration.Namespace,
@@ -63,9 +52,7 @@ func (v *ValidationRun) hotPlugVolume(ctx context.Context) error {
 
 	for _, pvc := range pvcList {
 		if err := v.clients.runtimeClient.Create(ctx, pvc); err != nil {
-			returnError := fmt.Errorf("error creating pvc: %w", err)
-			result.AddFailureInfo(returnError)
-			return returnError
+			return fmt.Errorf("error creating pvc: %w", err)
 		}
 		v.createdObjects = append(v.createdObjects, pvc)
 	}
@@ -73,9 +60,7 @@ func (v *ValidationRun) hotPlugVolume(ctx context.Context) error {
 	// hotplug pvc to vm
 	vmObj := &kubevirtv1.VirtualMachine{}
 	if err := v.clients.runtimeClient.Get(ctx, types.NamespacedName{Name: v.vmName, Namespace: v.Configuration.Namespace}, vmObj); err != nil {
-		returnError := fmt.Errorf("error looking up VM during hotplug attachment: %w", err)
-		result.AddFailureInfo(returnError)
-		return returnError
+		return fmt.Errorf("error looking up VM during hotplug attachment: %w", err)
 	}
 
 	for i, pvc := range pvcList {
@@ -100,9 +85,7 @@ func (v *ValidationRun) hotPlugVolume(ctx context.Context) error {
 
 		// add volume
 		if err := v.clients.kubevirtClient.VirtualMachine(vmObj.Namespace).AddVolume(ctx, vmObj.Name, volume); err != nil {
-			returnError := fmt.Errorf("error attempting to hot plug disks: %w", err)
-			result.AddFailureInfo(returnError)
-			return returnError
+			return fmt.Errorf("error attempting to hot plug disks: %w", err)
 		}
 	}
 
@@ -138,7 +121,6 @@ func (v *ValidationRun) hotPlugVolume(ctx context.Context) error {
 
 	// wait until VM is running
 	if err := v.waitUntilObjectIsReady(ctx, vmiObj, checkHotPlugStatus); err != nil {
-		result.AddFailureInfo(err)
 		return err
 	}
 
@@ -152,13 +134,9 @@ func (v *ValidationRun) hotPlugVolume(ctx context.Context) error {
 
 		// remove volume
 		if err := v.clients.kubevirtClient.VirtualMachine(vmObj.Namespace).RemoveVolume(ctx, vmObj.Name, volume); err != nil {
-			returnError := fmt.Errorf("error attempting to remove hot plug disks: %w", err)
-			result.AddFailureInfo(returnError)
-			return returnError
+			return fmt.Errorf("error attempting to remove hot plug disks: %w", err)
 		}
 	}
 
-	result.Status = api.CheckStatusSuccess
-	completedCheck(checkName)
 	return nil
 }

@@ -1,0 +1,12 @@
+#!/bin/bash
+set -e
+
+source $(dirname $0)/version
+cd $(dirname $0)/..
+
+mkdir -p bin
+
+LINKFLAGS="-X github.com/harvester/storage-validator/main.Version=$TAG"
+GOARCH=amd64  GOOS=linux CGO_ENABLED=0 go build -ldflags "$LINKFLAGS" -o bin/storage-validator-linux-amd64 .
+GOARCH=arm64  GOOS=linux CGO_ENABLED=0 go build -ldflags "$LINKFLAGS" -o bin/storage-validator-linux-arm64 .
+GOARCH=arm64  GOOS=darwin CGO_ENABLED=0 go build -ldflags "$LINKFLAGS" -o bin/storage-validator-darwin-arm64 .

@@ -9,20 +9,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/harvester/storage-validator/pkg/api"
 )
 
 func (v *ValidationRun) volumeOfflineResize(ctx context.Context) error {
-	checkName := "ensure offline volume expansion is successful"
-	initiateCheck(checkName)
-	result := &api.Result{
-		Name: checkName,
-	}
-
-	defer func() {
-		v.AddResult(*result)
-	}()
 
 	pvc := &corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
@@ -46,9 +35,7 @@ func (v *ValidationRun) volumeOfflineResize(ctx context.Context) error {
 	// need to create pvc
 	err := v.clients.runtimeClient.Create(ctx, pvc)
 	if err != nil {
-		returnError := fmt.Errorf("error creating pvc: %w", err)
-		result.AddFailureInfo(returnError)
-		return returnError
+		return fmt.Errorf("error creating pvc: %w", err)
 	}
 
 	// store for cleanup later on
@@ -81,35 +68,27 @@ func (v *ValidationRun) volumeOfflineResize(ctx context.Context) error {
 
 	err = v.clients.runtimeClient.Create(ctx, pod)
 	if err != nil {
-		returnError := fmt.Errorf("error creating pvc: %w", err)
-		result.AddFailureInfo(returnError)
-		return returnError
+		return fmt.Errorf("error creating pvc: %w", err)
 	}
 
 	if err := v.waitUntilObjectIsReady(ctx, pod, verifyPodIsReady); err != nil {
-		result.AddFailureInfo(err)
 		return err
 	}
 
 	if err := v.waitUntilObjectIsReady(ctx, pvc, verifyPVCIsBound); err != nil {
-		result.AddFailureInfo(err)
 		return err
 	}
 
 	// delete pod as we need to trigger offline expansion
 	if err := v.clients.runtimeClient.Delete(ctx, pod); err != nil {
-		returnError := fmt.Errorf("error deleting pod: %w", err)
-		result.AddFailureInfo(returnError)
-		return returnError
+		return fmt.Errorf("error deleting pod: %w", err)
 	}
 
 	// resize PVC
 	pvcObj := pvc.DeepCopy()
 	pvc.Spec.Resources.Requests[corev1.ResourceStorage] = resource.MustParse(DefaultPVCResizeRequest)
 	if err := v.clients.runtimeClient.Patch(ctx, pvc, client.MergeFrom(pvcObj)); err != nil {
-		returnError := fmt.Errorf("error patching pvc size: %w", err)
-		result.AddFailureInfo(returnError)
-		return returnError
+		return fmt.Errorf("error patching pvc size: %w", err)
 	}
 
 	checkPVCResize := func(obj client.Object) (bool, error) {
@@ -124,11 +103,8 @@ func (v *ValidationRun) volumeOfflineResize(ctx context.Context) error {
 	}
 
 	if err := v.waitUntilObjectIsReady(ctx, pvc, checkPVCResize); err != nil {
-		result.AddFailureInfo(err)
 		return err
 	}
 
-	result.Status = api.CheckStatusSuccess
-	completedCheck(checkName)
 	return nil
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/harvester/harvester/pkg/apis/harvesterhci.io/v1beta1"
 	harvesterv1beta1 "github.com/harvester/harvester/pkg/apis/harvesterhci.io/v1beta1"
 	snapshot "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
 	"github.com/sirupsen/logrus"
@@ -28,6 +29,10 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+const (
+	ServerVersionSetting = "server-version"
+)
+
 type ValidationRun struct {
 	ConfigFile     string
 	ctx            context.Context
@@ -36,10 +41,11 @@ type ValidationRun struct {
 	createdObjects []client.Object
 	cfg            *rest.Config
 	clients        HarvesterClient
-	pvcName        string                  // used to track baseline pvc used for snapshots
-	vmImageName    string                  // used to track vmimage created for subsequent vm creation
-	vmName         string                  // used to track vm created for hot plug and snapshot operations
-	storageClass   *storagev1.StorageClass // used to store the default storage class object
+	pvcName        string // used to track baseline pvc used for snapshots
+	vmImageName    string // used to track vmimage created for subsequent vm creation
+	vmName         string // used to track vm created for hot plug and snapshot operations
+	storageClass   *storagev1.StorageClass
+	Version        string
 }
 
 type HarvesterClient struct {
@@ -70,26 +76,34 @@ func (v *ValidationRun) Execute() error {
 		return err
 	}
 
+	// initialise reporting structure
+	v.Report = &api.Report{
+		Configuration: *v.Configuration,
+	}
+
 	// generate k8s clients
 	if err := v.setupClients(); err != nil {
 		return err
 	}
 
 	// run preflight checks
-	logrus.Info("running preflight checks")
+	initiateCheck("preflight checks")
 	if err := v.preFlightChecks(); err != nil {
 		return err
 	}
+	completedCheck("preflight checks")
 
+	envInfo, err := v.fetchEnvironmentInfo()
+	if err != nil {
+		return err
+	}
+
+	v.Report.EnvironmentInfo = envInfo
 	// apply systemwide defaults
 	if err := v.applyValidatinoDefaults(); err != nil {
 		return err
 	}
 
-	// initialise reporting structure
-	v.Report = &api.Report{
-		Configuration: *v.Configuration,
-	}
 	if err := v.runChecks(); err != nil {
 		logrus.Errorf("validation failed with error: %v", err)
 	}
@@ -99,6 +113,7 @@ func (v *ValidationRun) Execute() error {
 		return fmt.Errorf("err marshalling result data: %w", err)
 	}
 
+	fmt.Println("-------------------------------------")
 	fmt.Println(string(resultByte))
 	return nil
 }
@@ -265,4 +280,23 @@ func (v *ValidationRun) IsLonghornV1Engine() bool {
 		}
 	}
 	return false
+}
+
+func (v *ValidationRun) fetchEnvironmentInfo() (api.EnvironmentInfo, error) {
+	envInfo := api.EnvironmentInfo{}
+	nodeList := &corev1.NodeList{}
+	if err := v.clients.runtimeClient.List(v.ctx, nodeList); err != nil {
+		return envInfo, fmt.Errorf("error listing nodes in cluster: %w", err)
+	}
+
+	envInfo.NodeCount = len(nodeList.Items)
+
+	setting := &v1beta1.Setting{}
+	if err := v.clients.runtimeClient.Get(v.ctx, types.NamespacedName{Name: ServerVersionSetting, Namespace: ""}, setting); err != nil {
+		return envInfo, fmt.Errorf("error fetching harvester version: %w", err)
+	}
+	envInfo.HarvesterVersion = setting.Value
+	envInfo.ValidatorVersion = v.Version
+
+	return envInfo, nil
 }

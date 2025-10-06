@@ -12,21 +12,9 @@ import (
 	kubevirtv1 "kubevirt.io/api/core/v1"
 	cdiv1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/harvester/storage-validator/pkg/api"
 )
 
 func (v *ValidationRun) createVirtualMachine(ctx context.Context) error {
-	checkName := "ensure vm can boot from recently created vmimage"
-	initiateCheck(checkName)
-	result := &api.Result{
-		Name: checkName,
-	}
-
-	defer func() {
-		v.AddResult(*result)
-	}()
-
 	pvc := &corev1.PersistentVolumeClaim{}
 	var err error
 	// when using longhornV1 Engine a storage class is created with same name as image
@@ -34,14 +22,12 @@ func (v *ValidationRun) createVirtualMachine(ctx context.Context) error {
 	if v.IsLonghornV1Engine() {
 		pvc, err = v.createV1PVC(ctx)
 		if err != nil {
-			result.AddFailureInfo(err)
 			return err
 		}
 	} else {
 		// CDI backed image, so we need to find golden pvc and use that
 		pvc, err = v.createDataVolume(ctx)
 		if err != nil {
-			result.AddFailureInfo(err)
 			return err
 		}
 	}
@@ -117,10 +103,7 @@ func (v *ValidationRun) createVirtualMachine(ctx context.Context) error {
 	// create VM object
 	err = v.clients.runtimeClient.Create(ctx, vmObj)
 	if err != nil {
-		returnError := fmt.Errorf("error creating vm: %w", err)
-		result.AddFailureInfo(returnError)
-		return returnError
-
+		return fmt.Errorf("error creating vm: %w", err)
 	}
 
 	v.createdObjects = append(v.createdObjects, vmObj)
@@ -141,12 +124,9 @@ func (v *ValidationRun) createVirtualMachine(ctx context.Context) error {
 
 	// wait until VM is running
 	if err := v.waitUntilObjectIsReady(ctx, vmObj, checkVMStatus); err != nil {
-		result.AddFailureInfo(err)
 		return err
 	}
 
-	result.Status = api.CheckStatusSuccess
-	completedCheck(checkName)
 	return nil
 }
 

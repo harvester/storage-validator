@@ -9,20 +9,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/harvester/storage-validator/pkg/api"
 )
 
 func (v *ValidationRun) createVolume(ctx context.Context) error {
-	checkName := "ensure volume is created and used successfully"
-	initiateCheck(checkName)
-	result := &api.Result{
-		Name: checkName,
-	}
-
-	defer func() {
-		v.AddResult(*result)
-	}()
 
 	pvc := &corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
@@ -46,9 +35,7 @@ func (v *ValidationRun) createVolume(ctx context.Context) error {
 	// need to create pvc
 	err := v.clients.runtimeClient.Create(ctx, pvc)
 	if err != nil {
-		returnError := fmt.Errorf("error creating pvc: %w", err)
-		result.AddFailureInfo(returnError)
-		return returnError
+		return fmt.Errorf("error creating pvc: %w", err)
 	}
 
 	// store for cleanup later on
@@ -82,24 +69,17 @@ func (v *ValidationRun) createVolume(ctx context.Context) error {
 
 	err = v.clients.runtimeClient.Create(ctx, pod)
 	if err != nil {
-		returnError := fmt.Errorf("error creating pvc: %w", err)
-		result.AddFailureInfo(returnError)
-		return returnError
+		return fmt.Errorf("error creating pvc: %w", err)
 	}
 	v.createdObjects = append(v.createdObjects, pod)
 
 	if err := v.waitUntilObjectIsReady(ctx, pod, verifyPodIsReady); err != nil {
-		result.AddFailureInfo(err)
 		return err
 	}
 
 	if err := v.waitUntilObjectIsReady(ctx, pvc, verifyPVCIsBound); err != nil {
-		result.AddFailureInfo(err)
 		return err
 	}
-
-	result.Status = api.CheckStatusSuccess
-	completedCheck(checkName)
 	return nil
 }
 

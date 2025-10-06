@@ -1,0 +1,11 @@
+FROM registry.suse.com/bci/golang:1.25
+
+ARG DAPPER_HOST_ARCH
+ENV ARCH="$DAPPER_HOST_ARCH"
+
+ENV DAPPER_ENV="REPO TAG DRONE_TAG CROSS"
+ENV DAPPER_SOURCE="/go/src/github.com/harvester/storage-validator"
+ENV DAPPER_OUTPUT="./bin"
+WORKDIR ${DAPPER_SOURCE}
+ENTRYPOINT ["./scripts/entry"]
+CMD ["ci"]

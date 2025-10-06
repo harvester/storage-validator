@@ -8,21 +8,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/harvester/storage-validator/pkg/api"
 )
 
 func (v *ValidationRun) createVMImage(ctx context.Context) error {
-	checkName := "ensure vm image creation is successful"
-	initiateCheck(checkName)
-	result := &api.Result{
-		Name: checkName,
-	}
-
-	defer func() {
-		v.AddResult(*result)
-	}()
-
 	vmImage := &harvesterv1beta1.VirtualMachineImage{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "vmimage-storage-validation-",
@@ -46,9 +34,7 @@ func (v *ValidationRun) createVMImage(ctx context.Context) error {
 
 	// submit vmimage request
 	if err := v.clients.runtimeClient.Create(ctx, vmImage); err != nil {
-		returnError := fmt.Errorf("error creating vmimage: %w", err)
-		result.AddFailureInfo(returnError)
-		return returnError
+		return fmt.Errorf("error creating vmimage: %w", err)
 	}
 
 	v.createdObjects = append(v.createdObjects, vmImage)
@@ -71,10 +57,8 @@ func (v *ValidationRun) createVMImage(ctx context.Context) error {
 
 	// wait until VMImage is ready
 	if err := v.waitUntilObjectIsReady(ctx, vmImage, checkVMImage); err != nil {
-		result.AddFailureInfo(err)
 		return err
 	}
-	result.Status = api.CheckStatusSuccess
-	completedCheck(checkName)
+
 	return nil
 }
