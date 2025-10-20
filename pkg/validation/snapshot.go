@@ -37,7 +37,7 @@ func (v *ValidationRun) createSnapshot(ctx context.Context) error {
 			return false, fmt.Errorf("error asserting object %v to volumesnapshot", client.ObjectKeyFromObject(obj))
 		}
 
-		if snapshotObj.Status.ReadyToUse != nil && *snapshotObj.Status.ReadyToUse {
+		if snapshotObj.Status != nil && snapshotObj.Status.ReadyToUse != nil && *snapshotObj.Status.ReadyToUse {
 			return true, nil
 		}
 		return false, nil

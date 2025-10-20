@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -58,6 +59,11 @@ func deleteObjectWithRetry(ctx context.Context, runtimeClient client.Client, obj
 		logrus.Debugf("trying to delete object %v \n", client.ObjectKeyFromObject(obj))
 		err = runtimeClient.Delete(ctx, obj)
 		if err == nil {
+			return nil
+		}
+
+		// if object is not found, then ignore and exit
+		if apierrors.IsNotFound(err) {
 			return nil
 		}
 		time.Sleep(20 * time.Second)
