@@ -13,14 +13,6 @@ import (
 func (v *ValidationRun) cleanupResources(ctx context.Context, complete chan bool) error {
 	// block execution until checks have completed or timed out
 	<-ctx.Done()
-	/*cleanup:
-	for {
-		select {
-		case <-ctx.Done():
-			break cleanup
-		}
-
-	}*/
 	if ctx.Err() != nil && errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		logrus.Errorf("validation timed out")
 	}
