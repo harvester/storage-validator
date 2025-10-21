@@ -4,8 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/harvester/storage-validator/pkg/api"
 	"github.com/sirupsen/logrus"
+
+	"github.com/harvester/storage-validator/pkg/api"
 )
 
 // Current validation requirements are
@@ -33,7 +34,12 @@ func (v *ValidationRun) runChecks() error {
 	ctx, cancel := context.WithTimeout(v.ctx, time.Duration(*v.Configuration.Timeout)*time.Second)
 	defer cancel()
 	cleanupComplete := make(chan bool)
-	go v.cleanupResources(ctx, cleanupComplete)
+	go func() {
+		err := v.cleanupResources(ctx, cleanupComplete)
+		if err != nil {
+			logrus.Errorf("error during resource cleaup: %v", err)
+		}
+	}()
 
 	validations := []Validation{
 		{

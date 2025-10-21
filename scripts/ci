@@ -4,9 +4,25 @@ set -e
 source $(dirname $0)/version
 cd $(dirname $0)/..
 
+echo "Running validation"
+
+if [[ -z "$(command -v golangci-lint)" ]]; then
+	echo "no golangci-lint available, using go fmt/vet instead"
+	echo "Running: go fmt"
+	go fmt ./...
+	echo "Running: go vet"
+	go vet -tags=test ./...
+	exit
+fi
+
+echo "Running: golangci-lint run"
+golangci-lint run
+
 mkdir -p bin
 
 LINKFLAGS="-X github.com/harvester/storage-validator/main.Version=$TAG"
 GOARCH=amd64  GOOS=linux CGO_ENABLED=0 go build -ldflags "$LINKFLAGS" -o bin/storage-validator-linux-amd64 .
 GOARCH=arm64  GOOS=linux CGO_ENABLED=0 go build -ldflags "$LINKFLAGS" -o bin/storage-validator-linux-arm64 .
 GOARCH=arm64  GOOS=darwin CGO_ENABLED=0 go build -ldflags "$LINKFLAGS" -o bin/storage-validator-darwin-arm64 .
+GOARCH=arm64  GOOS=windows CGO_ENABLED=0 go build -ldflags "$LINKFLAGS" -o bin/storage-validator-windows-arm64 .
+GOARCH=amd64  GOOS=windows CGO_ENABLED=0 go build -ldflags "$LINKFLAGS" -o bin/storage-validator-windows-amd64 .

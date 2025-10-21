@@ -6,6 +6,9 @@ ENV ARCH="$DAPPER_HOST_ARCH"
 ENV DAPPER_ENV="REPO TAG DRONE_TAG CROSS"
 ENV DAPPER_SOURCE="/go/src/github.com/harvester/storage-validator"
 ENV DAPPER_OUTPUT="./bin"
+
+RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s latest
+
 WORKDIR ${DAPPER_SOURCE}
 ENTRYPOINT ["./scripts/entry"]
 CMD ["ci"]

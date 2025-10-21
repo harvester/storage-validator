@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/harvester/harvester/pkg/apis/harvesterhci.io/v1beta1"
 	harvesterv1beta1 "github.com/harvester/harvester/pkg/apis/harvesterhci.io/v1beta1"
 	snapshot "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
 	"github.com/sirupsen/logrus"
@@ -24,7 +23,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/rest"
 	"kubevirt.io/client-go/kubecli"
-	cdi "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 )
@@ -214,7 +212,7 @@ func (v *ValidationRun) applyValidatinoDefaults() error {
 	// verify if there is no snapshot class if one can be identified from
 	// the underlying cdi storage profile
 	if v.Configuration.SnapshotClass == "" {
-		storageProfileList := &cdi.StorageProfileList{}
+		storageProfileList := &cdiv1.StorageProfileList{}
 		err := v.clients.runtimeClient.List(v.ctx, storageProfileList)
 		if err != nil {
 			return fmt.Errorf("error listing cdi storageprofiles: %w", err)
@@ -291,7 +289,7 @@ func (v *ValidationRun) fetchEnvironmentInfo() (api.EnvironmentInfo, error) {
 
 	envInfo.NodeCount = len(nodeList.Items)
 
-	setting := &v1beta1.Setting{}
+	setting := &harvesterv1beta1.Setting{}
 	if err := v.clients.runtimeClient.Get(v.ctx, types.NamespacedName{Name: ServerVersionSetting, Namespace: ""}, setting); err != nil {
 		return envInfo, fmt.Errorf("error fetching harvester version: %w", err)
 	}
