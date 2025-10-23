@@ -12,7 +12,7 @@ import (
 var (
 	configFile string
 	debug      bool
-	Version    = "dev"
+	Version    string
 )
 
 func main() {
