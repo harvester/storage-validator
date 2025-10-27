@@ -1,6 +1,6 @@
 module github.com/harvester/storage-validator
 
-go 1.24.6
+go 1.25.2
 
 require (
 	github.com/harvester/harvester v1.6.0
