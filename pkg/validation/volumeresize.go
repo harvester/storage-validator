@@ -99,6 +99,12 @@ func (v *ValidationRun) volumeOfflineResize(ctx context.Context) error {
 		if pvcObj.Status.Capacity[corev1.ResourceStorage] == pvcObj.Spec.Resources.Requests[corev1.ResourceStorage] {
 			return true, nil
 		}
+
+		// if FS resize is required, the capacity will not be updated until the FS resize is done, so we need to check if FS resize is required and if the allocated resources is equal to the requested resources, which means that the FS resize is pending and the capacity is not updated yet.
+		if IsFSResizeRequired(pvcObj) && pvcObj.Status.AllocatedResources[corev1.ResourceStorage] == pvcObj.Spec.Resources.Requests[corev1.ResourceStorage] {
+			return true, nil
+		}
+
 		return false, nil
 	}
 
@@ -107,4 +113,13 @@ func (v *ValidationRun) volumeOfflineResize(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func IsFSResizeRequired(pvc *corev1.PersistentVolumeClaim) bool {
+	for _, condition := range pvc.Status.Conditions {
+		if condition.Type == corev1.PersistentVolumeClaimFileSystemResizePending && condition.Status == corev1.ConditionTrue {
+			return true
+		}
+	}
+	return false
 }
