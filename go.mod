@@ -6,7 +6,7 @@ require (
 	github.com/harvester/harvester v1.8.0-dev-20260301
 	github.com/kubernetes-csi/external-snapshotter/client/v4 v4.2.0
 	github.com/rancher/wrangler/v3 v3.2.3-rc.3
-	github.com/sirupsen/logrus v1.9.3
+	github.com/sirupsen/logrus v1.9.4
 	github.com/stretchr/testify v1.11.1
 	k8s.io/api v0.34.0
 	k8s.io/apimachinery v0.34.1
