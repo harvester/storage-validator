@@ -3,7 +3,7 @@ module github.com/harvester/storage-validator
 go 1.25.2
 
 require (
-	github.com/harvester/harvester v1.6.0
+	github.com/harvester/harvester v1.6.1
 	github.com/kubernetes-csi/external-snapshotter/client/v4 v4.2.0
 	github.com/rancher/wrangler/v3 v3.2.2
 	github.com/sirupsen/logrus v1.9.3
