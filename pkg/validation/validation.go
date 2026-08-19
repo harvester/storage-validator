@@ -39,15 +39,15 @@ type ValidationRun struct {
 	SkipMigrationOverride bool
 	ctx                   context.Context
 	Configuration         *api.Configuration
-	Report         *api.Report
-	createdObjects []client.Object
-	cfg            *rest.Config
-	clients        HarvesterClient
-	pvcName        string // used to track baseline pvc used for snapshots
-	vmImageName    string // used to track vmimage created for subsequent vm creation
-	vmName         string // used to track vm created for hot plug and snapshot operations
-	storageClass   *storagev1.StorageClass
-	Version        string
+	Report                *api.Report
+	createdObjects        []client.Object
+	cfg                   *rest.Config
+	clients               HarvesterClient
+	pvcName               string // used to track baseline pvc used for snapshots
+	vmImageName           string // used to track vmimage created for subsequent vm creation
+	vmName                string // used to track vm created for hot plug and snapshot operations
+	storageClass          *storagev1.StorageClass
+	Version               string
 }
 
 type HarvesterClient struct {
@@ -120,6 +120,12 @@ func (v *ValidationRun) Execute() error {
 
 	fmt.Println("-------------------------------------")
 	fmt.Println(string(resultByte))
+
+	// Re-emit run-level warnings after the report so they are not lost in the
+	// scrollback; the report itself also carries them under `warnings`.
+	for _, w := range v.Report.Warnings {
+		logrus.Warnf("WARNING: %s", w)
+	}
 	return nil
 }
 
