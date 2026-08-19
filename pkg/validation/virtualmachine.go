@@ -138,7 +138,7 @@ func (v *ValidationRun) createV1PVC(ctx context.Context) (*corev1.PersistentVolu
 			Namespace:    v.Configuration.Namespace,
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
-			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
+			AccessModes: v.accessModes(),
 			Resources: corev1.VolumeResourceRequirements{
 				Requests: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceStorage: resource.MustParse(v.Configuration.VMConfig.DiskSize),
@@ -163,6 +163,15 @@ func (v *ValidationRun) createDataVolume(ctx context.Context) (*corev1.Persisten
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "vm-storage-validation-",
 			Namespace:    v.Configuration.Namespace,
+			Annotations: map[string]string{
+				// We wait for this DataVolume to become Ready before creating the
+				// VM that consumes it. With a WaitForFirstConsumer StorageClass
+				// (which node-local/topology-pinned drivers such as LVM CSI must
+				// use) CDI otherwise parks the clone in PendingPopulation until a
+				// consumer appears, deadlocking against that wait. Requesting
+				// immediate binding makes CDI populate the clone right away.
+				"cdi.kubevirt.io/storage.bind.immediate.requested": "true",
+			},
 		},
 		Spec: cdiv1.DataVolumeSpec{
 			Source: &cdiv1.DataVolumeSource{

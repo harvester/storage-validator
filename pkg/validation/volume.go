@@ -22,7 +22,7 @@ func (v *ValidationRun) createVolume(ctx context.Context) error {
 			},
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
-			AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
+			AccessModes:      v.accessModes(),
 			StorageClassName: ptr.To(v.Configuration.StorageClass),
 			Resources: corev1.VolumeResourceRequirements{
 				Requests: map[corev1.ResourceName]resource.Quantity{
@@ -52,6 +52,12 @@ func (v *ValidationRun) createVolume(ctx context.Context) error {
 				{
 					Name:  "nginx",
 					Image: "registry.suse.com/suse/nginx:1.21",
+					VolumeMounts: []corev1.VolumeMount{
+						{
+							Name:      "pvc-storage-validation",
+							MountPath: "/data",
+						},
+					},
 				},
 			},
 			Volumes: []corev1.Volume{
@@ -89,7 +95,7 @@ func verifyPodIsReady(obj client.Object) (bool, error) {
 	if !ok {
 		return false, fmt.Errorf("error asserting object %v to pod", client.ObjectKeyFromObject(obj))
 	}
-	if podObj.Status.Phase != corev1.PodRunning {
+	if podObj.Status.Phase == corev1.PodRunning {
 		return true, nil
 	}
 	return false, nil
