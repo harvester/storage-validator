@@ -12,7 +12,7 @@ storageClass: lvm
 snapshotClass: lvm-snapshot
 vmConfig:
   cpu: 2
-  memory: 2Gi
+  ram: 2Gi
   diskSize: 10Gi
 skipCleanup: false
 timeout: 600
@@ -28,10 +28,23 @@ Field details are as follows:
 | storageClass | storage class to be used for running tests | no | defauts to cluster default storage class |
 | snapshotClass | snapshot class associated with storage class to be used for snapshot operations | no | defaults to a snapshot class from identified storage class |
 | vmConfig.cpu | cores in provisioned VM | no | 2 |
-| vmConfig.memory | memory of provisioned VM | no | 2Gi |
+| vmConfig.ram | memory of provisioned VM | no | 2Gi |
 | vmConfig.diskSize | size of vm boot disk | no | 10Gi |
 | skipClean | skip clean up of resources after validation run, useful for debugging failures | no | false |
 | timeout | time in seconds to wait before timing out the validation run | no | 600 seconds |
+| accessMode | PVC access mode for all created volumes; set `ReadWriteOnce` for node-local / RWO-only drivers such as LVM CSI | no | ReadWriteMany |
+| singleNode | run on a single-node cluster by relaxing the pre-flight `>=2` Ready nodes requirement to `>=1`; implies `skipMigration` | no | false |
+| skipMigration | skip the live-migration check (for node-local storage whose volumes cannot migrate) | no | false |
+
+Each of `accessMode`, `singleNode` and `skipMigration` can also be set with the
+corresponding command-line flag (`-access-mode`, `-single-node`,
+`-skip-migration`), which takes precedence over the config file.
+
+> **Note:** with `singleNode` (or `skipMigration`) the live-migration check is
+> **not** run. Live migration is a critical storage capability, so the run
+> records it as `skipped` and the report carries a top-level `warnings` entry
+> making clear the results do not attest to it. Validate migration on a
+> multi-node cluster with migration-capable (RWX) storage.
 
 ### To run
 `storage-validator` accepts following flags
@@ -39,13 +52,50 @@ Field details are as follows:
 ```
 storage-validator -h
 Usage of /tmp/storage-validator:
+  -access-mode string
+    	Override PVC access mode for all created volumes, e.g. ReadWriteOnce for node-local/RWO-only drivers such as LVM CSI. Defaults to config or ReadWriteMany.
   -config string
     	Path to config file (default "config.yaml")
   -debug
     	Debug mode
   -kubeconfig string
     	Paths to a kubeconfig. Only required if out-of-cluster.
+  -single-node
+    	Allow running on a single-node cluster by relaxing the pre-flight >=2 Ready nodes requirement to >=1. Implies -skip-migration.
+  -skip-migration
+    	Skip the live-migration check (for node-local storage such as LVM CSI whose volumes cannot migrate).
 ```
+
+### Node-local / RWO-only storage (e.g. LVM CSI)
+
+Node-local, topology-pinned drivers such as the Harvester LVM CSI driver only
+support `ReadWriteOnce` and their volumes cannot live-migrate. Such a driver can
+still be validated (create/use, snapshot, offline expand, image, VM boot,
+hotplug), including on a single-node cluster, using the settings below:
+
+```yaml
+namespace: storage-validator-test
+imageURL: "https://download.opensuse.org/repositories/Cloud:/Images:/Leap_15.6/images/openSUSE-Leap-15.6.x86_64-NoCloud.qcow2"
+storageClass: lvm-thin-encrypted   # your LVM CSI StorageClass
+snapshotClass: lvm-snapshot
+accessMode: ReadWriteOnce           # LVM CSI rejects ReadWriteMany
+singleNode: true                    # run on a single node; implies skipMigration
+vmConfig:
+  cpu: 2
+  ram: 2Gi
+  diskSize: 10Gi
+skipCleanup: false
+timeout: 2400
+```
+
+The same run can be driven from flags on top of a standard config:
+
+```
+storage-validator -config ./config.yaml -access-mode ReadWriteOnce -single-node
+```
+
+Because this skips live migration, the report will include a top-level
+`warnings` entry and the migration check will appear with `status: skipped`.
 
 Sample output of utility will be as follows
 

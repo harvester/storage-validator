@@ -1,6 +1,11 @@
 package api
 
 type Report struct {
+	// Warnings highlights caveats about the run itself (as opposed to a
+	// per-check failure) that a reader must not miss when interpreting the
+	// results, e.g. an important check that was skipped. Placed first so it
+	// surfaces at the top of the emitted report.
+	Warnings        []string `json:"warnings,omitempty"`
 	EnvironmentInfo `json:"environmentInfo"`
 	Configuration   `json:"inputConfiguration"`
 	Results         []Result `json:"results"`
