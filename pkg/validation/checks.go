@@ -62,15 +62,24 @@ func (v *ValidationRun) runChecks() error {
 			Name:              "ensure vm can boot from recently created vmimage",
 			ExecuteValidation: v.createVirtualMachine,
 		},
-		{
+	}
+
+	// Live migration requires a second node and a volume that can move; skip it
+	// for single-node clusters and node-local (topology-pinned) storage such as
+	// LVM CSI. See -single-node / -skip-migration.
+	if !v.skipMigration() {
+		validations = append(validations, Validation{
 			Name:              "trigger VM migration",
 			ExecuteValidation: v.runVMMigration,
-		},
-		{
-			Name:              "hotplug 2 volumes to existing VM",
-			ExecuteValidation: v.hotPlugVolume,
-		},
+		})
+	} else {
+		logrus.Info("skipping live-migration check (single-node or skip-migration set)")
 	}
+
+	validations = append(validations, Validation{
+		Name:              "hotplug 2 volumes to existing VM",
+		ExecuteValidation: v.hotPlugVolume,
+	})
 
 	var err error
 	// on error break execution and ensure cleanup is triggered

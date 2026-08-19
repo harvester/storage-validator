@@ -20,6 +20,20 @@ type Configuration struct {
 	SkipCleanup *bool `json:"skipCleanup,omitempty"`
 	// Timeout represents time duration in seconds to wait before triggering cleanup
 	Timeout *int `json:"timeout,omitempty"`
+
+	// AccessMode is the PVC access mode used for all volumes created during the
+	// run. Defaults to ReadWriteMany. Set to ReadWriteOnce for node-local /
+	// RWO-only drivers (e.g. LVM CSI) that reject MULTI_NODE_MULTI_WRITER.
+	AccessMode string `json:"accessMode,omitempty"`
+
+	// SingleNode relaxes the pre-flight requirement of >=2 Ready nodes to >=1,
+	// so the storage-focused checks can run on a single-node cluster. Implies
+	// SkipMigration, since live migration requires a second node.
+	SingleNode *bool `json:"singleNode,omitempty"`
+
+	// SkipMigration skips the live-migration check. Use for node-local storage
+	// (e.g. LVM CSI) whose volumes are topology-pinned and cannot migrate.
+	SkipMigration *bool `json:"skipMigration,omitempty"`
 }
 
 type VMSpec struct {
