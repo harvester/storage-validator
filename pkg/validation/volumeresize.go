@@ -22,7 +22,7 @@ func (v *ValidationRun) volumeOfflineResize(ctx context.Context) error {
 			},
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
-			AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
+			AccessModes:      v.accessModes(),
 			StorageClassName: ptr.To(v.Configuration.StorageClass),
 			Resources: corev1.VolumeResourceRequirements{
 				Requests: map[corev1.ResourceName]resource.Quantity{
@@ -51,6 +51,12 @@ func (v *ValidationRun) volumeOfflineResize(ctx context.Context) error {
 				{
 					Name:  "nginx",
 					Image: "registry.suse.com/suse/nginx:1.21",
+					VolumeMounts: []corev1.VolumeMount{
+						{
+							Name:      "pvc-storage-validation",
+							MountPath: "/data",
+						},
+					},
 				},
 			},
 			Volumes: []corev1.Volume{
@@ -90,6 +96,47 @@ func (v *ValidationRun) volumeOfflineResize(ctx context.Context) error {
 	if err := v.clients.runtimeClient.Patch(ctx, pvc, client.MergeFrom(pvcObj)); err != nil {
 		return fmt.Errorf("error patching pvc size: %w", err)
 	}
+
+	// Recreate a consumer pod so the kubelet completes the offline file system
+	// resize on the node. For drivers that do NOT populate status.allocatedResources
+	// (e.g. lvm.driver.harvesterhci.io), the PVC otherwise stays in
+	// FileSystemResizePending forever and status.capacity never updates. For
+	// encrypted volumes this remount is also what triggers the driver's
+	// NodeExpandVolume LUKS/cryptsetup resize.
+	resizePod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: "volume-resize-remount-storage-validation-",
+			Namespace:    v.Configuration.Namespace,
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  "nginx",
+					Image: "registry.suse.com/suse/nginx:1.21",
+					VolumeMounts: []corev1.VolumeMount{
+						{
+							Name:      "pvc-storage-validation",
+							MountPath: "/data",
+						},
+					},
+				},
+			},
+			Volumes: []corev1.Volume{
+				{
+					Name: "pvc-storage-validation",
+					VolumeSource: corev1.VolumeSource{
+						PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+							ClaimName: pvc.Name,
+						},
+					},
+				},
+			},
+		},
+	}
+	if err := v.clients.runtimeClient.Create(ctx, resizePod); err != nil {
+		return fmt.Errorf("error creating remount pod for resize: %w", err)
+	}
+	v.createdObjects = append(v.createdObjects, resizePod)
 
 	checkPVCResize := func(obj client.Object) (bool, error) {
 		pvcObj, ok := obj.(*corev1.PersistentVolumeClaim)

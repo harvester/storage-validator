@@ -32,9 +32,13 @@ const (
 )
 
 type ValidationRun struct {
-	ConfigFile     string
-	ctx            context.Context
-	Configuration  *api.Configuration
+	ConfigFile string
+	// CLI overrides applied on top of the config file (empty/false = unset).
+	AccessModeOverride    string
+	SingleNodeOverride    bool
+	SkipMigrationOverride bool
+	ctx                   context.Context
+	Configuration         *api.Configuration
 	Report         *api.Report
 	createdObjects []client.Object
 	cfg            *rest.Config
@@ -73,6 +77,9 @@ func (v *ValidationRun) Execute() error {
 	if err := v.readConfig(); err != nil {
 		return err
 	}
+
+	// apply CLI flag overrides on top of the config file
+	v.applyOverrides()
 
 	// initialise reporting structure
 	v.Report = &api.Report{
@@ -150,10 +157,53 @@ func (v *ValidationRun) preFlightChecks() error {
 		}
 	}
 
-	if count < 2 {
-		return errors.New("cluster does not have atleast 2 nodes, aborting run")
+	minNodes := 2
+	if v.singleNode() {
+		minNodes = 1
+	}
+	if count < minNodes {
+		return fmt.Errorf("cluster does not have atleast %d Ready node(s), aborting run (use single-node mode to relax this)", minNodes)
 	}
 	return nil
+}
+
+// applyOverrides layers the CLI flag overrides on top of the config file.
+func (v *ValidationRun) applyOverrides() {
+	if v.AccessModeOverride != "" {
+		v.Configuration.AccessMode = v.AccessModeOverride
+	}
+	if v.SingleNodeOverride {
+		t := true
+		v.Configuration.SingleNode = &t
+	}
+	if v.SkipMigrationOverride {
+		t := true
+		v.Configuration.SkipMigration = &t
+	}
+}
+
+// singleNode reports whether single-node mode is enabled.
+func (v *ValidationRun) singleNode() bool {
+	return v.Configuration.SingleNode != nil && *v.Configuration.SingleNode
+}
+
+// skipMigration reports whether the live-migration check should be skipped.
+// Single-node mode implies it, since migration needs a second node.
+func (v *ValidationRun) skipMigration() bool {
+	if v.singleNode() {
+		return true
+	}
+	return v.Configuration.SkipMigration != nil && *v.Configuration.SkipMigration
+}
+
+// accessModes returns the PVC access mode list to use for created volumes,
+// defaulting to ReadWriteMany when unset.
+func (v *ValidationRun) accessModes() []corev1.PersistentVolumeAccessMode {
+	mode := corev1.PersistentVolumeAccessMode(v.Configuration.AccessMode)
+	if mode == "" {
+		mode = corev1.ReadWriteMany
+	}
+	return []corev1.PersistentVolumeAccessMode{mode}
 }
 
 // ApplyDefaults will apply sane defaults for the storage validation configuration
