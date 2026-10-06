@@ -24,6 +24,7 @@ func (v *ValidationRun) volumeOfflineResize(ctx context.Context) error {
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
 			StorageClassName: ptr.To(v.Configuration.StorageClass),
+			VolumeMode: ptr.To(corev1.PersistentVolumeBlock),
 			Resources: corev1.VolumeResourceRequirements{
 				Requests: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceStorage: resource.MustParse(DefaultPVCSize),
