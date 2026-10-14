@@ -5,13 +5,20 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
+	cdiv1beta1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func (v *ValidationRun) createVolume(ctx context.Context) error {
+
+	storageProfile, err := v.GetStorageProfile(ctx)
+	if err != nil {
+		return err
+	}
 
 	pvc := &corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
@@ -32,8 +39,14 @@ func (v *ValidationRun) createVolume(ctx context.Context) error {
 		},
 	}
 
+	if storageProfile != nil {
+		// override pvc access modes and volume mode based on first element of storage profile ClaimPropertySets
+		pvc.Spec.AccessModes = storageProfile.Spec.ClaimPropertySets[0].AccessModes
+		pvc.Spec.VolumeMode = storageProfile.Spec.ClaimPropertySets[0].VolumeMode
+	}
+
 	// need to create pvc
-	err := v.clients.runtimeClient.Create(ctx, pvc)
+	err = v.clients.runtimeClient.Create(ctx, pvc)
 	if err != nil {
 		return fmt.Errorf("error creating pvc: %w", err)
 	}
@@ -105,4 +118,20 @@ func verifyPVCIsBound(obj client.Object) (bool, error) {
 		return true, nil
 	}
 	return false, nil
+}
+
+func (v *ValidationRun) GetStorageProfile(ctx context.Context) (*cdiv1beta1.StorageProfile, error) {
+	storageProfile := &cdiv1beta1.StorageProfile{}
+	err := v.clients.runtimeClient.Get(ctx, client.ObjectKey{Name: v.Configuration.StorageClass}, storageProfile)
+
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, nil
+		} else {
+			return nil, fmt.Errorf("error getting storage profile: %w", err)
+		}
+
+	}
+
+	return storageProfile, nil
 }

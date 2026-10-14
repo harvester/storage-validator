@@ -13,6 +13,10 @@ import (
 
 func (v *ValidationRun) volumeOfflineResize(ctx context.Context) error {
 
+	storageProfile, err := v.GetStorageProfile(ctx)
+	if err != nil {
+		return err
+	}
 	pvc := &corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "volume-resize-storage-validation-",
@@ -32,8 +36,14 @@ func (v *ValidationRun) volumeOfflineResize(ctx context.Context) error {
 		},
 	}
 
+	if storageProfile != nil {
+		// override pvc access modes and volume mode based on first element of storage profile ClaimPropertySets
+		pvc.Spec.AccessModes = storageProfile.Spec.ClaimPropertySets[0].AccessModes
+		pvc.Spec.VolumeMode = storageProfile.Spec.ClaimPropertySets[0].VolumeMode
+	}
+
 	// need to create pvc
-	err := v.clients.runtimeClient.Create(ctx, pvc)
+	err = v.clients.runtimeClient.Create(ctx, pvc)
 	if err != nil {
 		return fmt.Errorf("error creating pvc: %w", err)
 	}
