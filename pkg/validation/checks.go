@@ -47,7 +47,9 @@ func (v *ValidationRun) runChecks() error {
 		}
 	}()
 
-	validations := []Validation{
+	// 5 base checks + live migration + hotplug
+	validations := make([]Validation, 0, 7)
+	validations = append(validations, []Validation{
 		{
 			Name:              "ensure volume is created and used successfully",
 			ExecuteValidation: v.createVolume,
@@ -68,7 +70,7 @@ func (v *ValidationRun) runChecks() error {
 			Name:              "ensure vm can boot from recently created vmimage",
 			ExecuteValidation: v.createVirtualMachine,
 		},
-	}
+	}...)
 
 	// Live migration requires a second node and a volume that can move. On a
 	// single-node cluster, or for node-local (topology-pinned) storage such as
